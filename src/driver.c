@@ -1,14 +1,54 @@
 #include<libusb-1.0/libusb.h>
 #include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
 #include<stdio.h>
+char *button_map[]={
+  "v","c","d","x","Up","Down","Left","Right","Return","space","s","a"
+};
 
 static void error(libusb_context* ctx,char* msg){
   fprintf(stderr,"%s\n",msg);
   libusb_exit(ctx);
   exit(1);
 }
+static void check(uint8_t* input,int threshold,uint8_t* map){
+  if(*input>=threshold){
+    *input-=threshold;
+    *map=0x01;
+  }
+}
+static void tick_inputs(uint8_t* inputs,uint8_t* curr,uint8_t* last){
+  inputs[5]-=15;
+  memcpy(last,curr,12);
+  memset(curr,0,12);
+  check(inputs+5,128,curr);
+  check(inputs+5,64,curr+1);
+  check(inputs+5,32,curr+2);
+  check(inputs+5,16,curr+3);
+  check(inputs+6,32,curr+9);
+  check(inputs+6,16,curr+8);
+  check(inputs+6,4,curr+10);
+  check(inputs+6,1,curr+11);
+  if(inputs[4]) curr[5]=0x01;
+  else curr[4]=0x01;
+  if(inputs[3]) curr[7]=0x01;
+  else curr[6]=0x01;
+}
+void process_delta(uint8_t* curr,uint8_t* last){
+  for(int a=0;a<12;a++){
+    if(curr[a] && !last[a]){
+      printf("Keydown %s\n",button_map[a]);
+    }
+    if(!curr[a] && last[a]){
+      printf("Keyup %s\n",button_map[a]);
+    }
+  }
+}
 
 int main(int argc,char** argv){
+
+  // LibUSB setup
   struct libusb_device_descriptor desc;
   libusb_device_handle* dev=NULL;
   libusb_device** list;
@@ -28,18 +68,24 @@ int main(int argc,char** argv){
     if(libusb_detach_kernel_driver(dev,i)) error(ctx,"Could not detach kernel driver");
   }
   if(libusb_claim_interface(dev,i)) error(ctx,"Could not claim interface");
-  printf("Now able to access controller\n");
+
+  // Begin data interpretation loop
   unsigned char* data=(unsigned char*)malloc(96);
   int transferred;
   int a=libusb_interrupt_transfer(dev,0x81,data,96,&transferred,200);
-  unsigned char input[8];
-  printf("%i\n",a);
+  uint8_t curr[12],last[12];
+  uint8_t input[8];
+  memset(last,0,12);
+  memset(curr,0,12);
   free(data);
+  printf("SNESmap is online\n");
   while(1){
     a=libusb_interrupt_transfer(dev,0x81,input,8,&transferred,200);
-    if(a==LIBUSB_ERROR_NO_DEVICE) break;
-    printf("\r%u,%u,%u,%u,%u,%u,%u,%u",input[0],input[1],input[2],input[3],input[4],input[5],input[6],input[7]);
+    if(a) break;
+    tick_inputs(input,curr,last);
+    process_delta(curr,last);
   }
+  printf("SNESmap terminated\n");
   libusb_close(dev);
   libusb_exit(ctx);
   return 0;
