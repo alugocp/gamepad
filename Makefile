@@ -1,6 +1,7 @@
 all: clean driver
+
 clean:
-	rm -f bin/*
+	rm -f driver
 
 driver:
-	gcc src/driver.c -lusb-1.0 -o bin/driver
+	gcc src/driver.c -o driver -lxdo -lusb-1.0

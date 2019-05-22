@@ -3,6 +3,7 @@
 #include<string.h>
 #include<unistd.h>
 #include<stdio.h>
+#include<xdo.h>
 char *button_map[]={
   "v","c","d","x","Up","Down","Left","Right","Return","space","s","a"
 };
@@ -22,33 +23,34 @@ static void tick_inputs(uint8_t* inputs,uint8_t* curr,uint8_t* last){
   inputs[5]-=15;
   memcpy(last,curr,12);
   memset(curr,0,12);
-  check(inputs+5,128,curr);
+  check(inputs+5,128,curr+3);
   check(inputs+5,64,curr+1);
-  check(inputs+5,32,curr+2);
-  check(inputs+5,16,curr+3);
+  check(inputs+5,32,curr);
+  check(inputs+5,16,curr+2);
   check(inputs+6,32,curr+9);
   check(inputs+6,16,curr+8);
   check(inputs+6,4,curr+10);
   check(inputs+6,1,curr+11);
-  if(inputs[4]) curr[5]=0x01;
-  else curr[4]=0x01;
-  if(inputs[3]) curr[7]=0x01;
-  else curr[6]=0x01;
+  if(!inputs[4]) curr[4]=0x01;
+  if(inputs[4]==255) curr[5]=0x01;
+  if(!inputs[3]) curr[6]=0x01;
+  if(inputs[3]==255) curr[7]=0x01;
 }
-void process_delta(uint8_t* curr,uint8_t* last){
+void process_delta(xdo_t* x,uint8_t* curr,uint8_t* last){
   for(int a=0;a<12;a++){
     if(curr[a] && !last[a]){
-      printf("Keydown %s\n",button_map[a]);
+      xdo_send_keysequence_window_down(x,CURRENTWINDOW,button_map[a],0);
     }
     if(!curr[a] && last[a]){
-      printf("Keyup %s\n",button_map[a]);
+      xdo_send_keysequence_window_up(x,CURRENTWINDOW,button_map[a],0);
     }
   }
 }
 
 int main(int argc,char** argv){
 
-  // LibUSB setup
+  // Initialization
+  xdo_t * x = xdo_new(":0.0");
   struct libusb_device_descriptor desc;
   libusb_device_handle* dev=NULL;
   libusb_device** list;
@@ -83,10 +85,11 @@ int main(int argc,char** argv){
     a=libusb_interrupt_transfer(dev,0x81,input,8,&transferred,200);
     if(a) break;
     tick_inputs(input,curr,last);
-    process_delta(curr,last);
+    process_delta(x,curr,last);
   }
   printf("SNESmap terminated\n");
   libusb_close(dev);
   libusb_exit(ctx);
+  xdo_free(x);
   return 0;
 }
