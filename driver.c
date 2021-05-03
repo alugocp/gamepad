@@ -4,7 +4,10 @@
 #include<unistd.h>
 #include<stdio.h>
 #include<xdo.h>
-char *button_map[]={
+char *ds_map[]={
+  "x","z","s","a","Up","Down","Left","Right","Shift","Return","w","q"
+};
+char *snes_map[]={
   "v","c","d","x","Up","Down","Left","Right","Return","space","s","a"
 };
 
@@ -36,7 +39,7 @@ static void tick_inputs(uint8_t* inputs,uint8_t* curr,uint8_t* last){
   if(!inputs[3]) curr[6]=0x01;
   if(inputs[3]==255) curr[7]=0x01;
 }
-void process_delta(xdo_t* x,uint8_t* curr,uint8_t* last){
+void process_delta(xdo_t* x,char** button_map,uint8_t* curr,uint8_t* last){
   for(int a=0;a<12;a++){
     if(curr[a] && !last[a]){
       xdo_send_keysequence_window_down(x,CURRENTWINDOW,button_map[a],0);
@@ -48,6 +51,20 @@ void process_delta(xdo_t* x,uint8_t* curr,uint8_t* last){
 }
 
 int main(int argc,char** argv){
+  char** button_map=snes_map;
+  if(argc==2){
+    if(!strcmp(argv[1],"snes")){
+      printf("SNES input set activated\n");
+      button_map=snes_map;
+    }else if(!strcmp(argv[1],"ds")){
+      printf("DS input set activated\n");
+      button_map=ds_map;
+    }else{
+      printf("Error: Input set not recognized\n");
+      printf("Supported sets: snes | ds");
+      exit(1);
+    }
+  }else printf("SNES input set activated\n");
 
   // Initialization
   xdo_t * x = xdo_new(":0.0");
@@ -85,7 +102,7 @@ int main(int argc,char** argv){
     a=libusb_interrupt_transfer(dev,0x81,input,8,&transferred,200);
     if(a) break;
     tick_inputs(input,curr,last);
-    process_delta(x,curr,last);
+    process_delta(x,button_map,curr,last);
   }
   printf("SNESmap terminated\n");
   libusb_close(dev);
