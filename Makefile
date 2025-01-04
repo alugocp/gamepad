@@ -1,7 +1,16 @@
-all: clean driver
+all: clean drivers
 
 clean:
-	rm -f driver
+	rm -rf out
+	mkdir out
 
-driver:
-	gcc driver.c -o driver -lxdo -lusb-1.0
+drivers: out/snes out/switch
+
+out/snes:
+	gcc snes/snes.c -o out/snes -lxdo -lusb-1.0
+
+out/switch:
+	echo "Not yet"
+
+install:
+	echo "Not yet"

@@ -1,9 +1,0 @@
-#!/bin/bash
-usb=( $(lsusb | grep DragonRise) )
-if [ "${#usb[@]}" = "0" ]; then
-  echo "Device not connected"
-  exit
-fi
-device="/dev/bus/usb/${usb[1]}/${usb[3]:0:3}"
-echo "Analyzing $device"
-lsusb -D $device
