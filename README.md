@@ -21,7 +21,3 @@ make drivers install
 
 ## Authors
 - **Alex Lugo**
-
-## Notes
-- [Linux USB drivers guide](https://sysplay.github.io/books/LinuxDrivers/book/Content/Part11.html)
-- [Definition of USB_DEVICE macro](https://github.com/torvalds/linux/blob/63676eefb7a026d04b51dcb7aaf54f358517a2ec/include/linux/usb.h#L986)

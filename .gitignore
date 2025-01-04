@@ -1,1 +1,4 @@
-/out
+# Nintendo Switch gamepad driver
+/switch/*
+!/switch/switch.c
+!/switch/Makefile
