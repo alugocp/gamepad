@@ -1,4 +1,8 @@
-# Nintendo Switch gamepad driver
-/switch/*
-!/switch/switch.c
-!/switch/Makefile
+# Linux driver build output files
+*.cmd
+*.symvers
+*.order
+*.ko
+*.mod.*
+*.mod
+*.o

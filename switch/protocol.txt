@@ -1,0 +1,37 @@
+7 bytes
+
+Byte 0 (ABXY/R/L/ZR/ZL)
+Y = 1
+B = 2
+A = 4
+X = 8
+L = 16
+R = 32
+ZL = 64
+ZR = 128
+
+Byte 1 (-/+/home/screenshot)
+- = 1
++ = 2
+home = 16
+screenshot = 32
+
+Byte 3 (left joystick x position)
+128 default position
+0 for all the way left
+255 for all the way right
+
+Byte 4 (left joystick y position)
+128 default position
+0 for all the way up
+255 for all the way down
+
+Byte 5 (right joystick x position)
+128 default position
+0 for all the way left
+255 for all the way right
+
+Byte 6 (right joystick y position)
+128 default position
+0 for all the way up
+255 for all the way down

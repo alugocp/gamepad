@@ -1,3 +1,8 @@
+/**
+ * This code is informed by the following:
+ * • https://github.com/torvalds/linux/blob/master/drivers/hid/usbhid/usbmouse.c
+ * • https://docs.kernel.org/6.0/driver-api/usb/usb.html
+ */
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/usb.h>
@@ -18,7 +23,23 @@ static struct urb *irq;
 
 // Reads some data from the gamepad
 static void gamepad_irq(struct urb *urb) {
-    printk(KERN_INFO "Wheee\n");
+    unsigned int a;
+    switch (urb->status) {
+        case 0:
+            break;
+        case -ECONNRESET:
+        case -ESHUTDOWN:
+        case -ENOENT:
+            return;
+        default:
+            usb_submit_urb(irq, GFP_ATOMIC);
+            return;
+    }
+    printk(KERN_INFO "Gamepad says:");
+    for (a = 0; a < 8; a++) {
+        printk(KERN_INFO " 0x%x", gamepad_buffer[a]);
+    }
+    printk(KERN_INFO "\n");
 }
 
 // Called when the gamepad buffer is opened
