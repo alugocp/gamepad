@@ -17,10 +17,11 @@ MODULE_AUTHOR("Alex Lugo <alugocp@aim.com>");
 MODULE_LICENSE("GPL");
 
 // Global variables
-static unsigned char *gamepad_buffer;
-static struct usb_device *device;
-static struct input_dev *idev;
-static struct urb *irq;
+static unsigned char *gamepad_buffer = NULL;
+static struct usb_device *device = NULL;
+static struct input_dev *idev = NULL;
+static struct urb *irq = NULL;
+static dma_addr_t data_dma;
 static int mouse_down = 0;
 
 // Reads some data from the gamepad
@@ -42,12 +43,10 @@ static void gamepad_urb_complete(struct urb *urb) {
     // Business logic to handle gamepad buffer data
     if (gamepad_buffer[0] == 4) {
         if (!mouse_down) {
-            printk(KERN_INFO "Down!\n");
             input_report_key(idev, BTN_LEFT, 1);
             mouse_down = 1;
         }
     } else if (mouse_down) {
-        printk(KERN_INFO "Up!\n");
         input_report_key(idev, BTN_LEFT, 0);
         mouse_down = 0;
     }
@@ -63,11 +62,26 @@ static void gamepad_urb_complete(struct urb *urb) {
     }
 }
 
+// Intelligently frees all the global object pointers
+static void gamepad_free_pointers(void) {
+    if (irq != NULL) {
+        usb_free_urb(irq);
+        irq = NULL;
+    }
+    if (gamepad_buffer != NULL) {
+        usb_free_coherent(device, BUFFER_SIZE, gamepad_buffer, data_dma);
+        gamepad_buffer = NULL;
+    }
+    if (idev != NULL) {
+        input_free_device(idev);
+        idev = NULL;
+    }
+}
+
 // Probe function that gets called when our device is connected
 static int gamepad_probe(struct usb_interface *interface, const struct usb_device_id *id) {
     int pipe;
     int result;
-    dma_addr_t data_dma;
     printk(KERN_INFO "Gamepad device detected\n");
 
     // Allocate and register the input device (controls the mouse)
@@ -78,8 +92,11 @@ static int gamepad_probe(struct usb_interface *interface, const struct usb_devic
     set_bit(EV_REL, idev->evbit);
     set_bit(REL_X, idev->relbit);
     set_bit(REL_Y, idev->relbit);
-    if (input_register_device(idev)) {
+    result = input_register_device(idev);
+    if (result) {
         printk(KERN_ERR "Could not register input device\n");
+        gamepad_free_pointers();
+        return result;
     }
 
     // Initialize logic to capture USB input stream data
@@ -87,15 +104,23 @@ static int gamepad_probe(struct usb_interface *interface, const struct usb_devic
     irq = usb_alloc_urb(0, GFP_KERNEL);
     if (!irq) {
         printk(KERN_ERR "Could not allocate a URB\n");
+        gamepad_free_pointers();
+        return -ENOENT;
     }
     pipe = usb_rcvintpipe(device, ADDRESS);
     gamepad_buffer = usb_alloc_coherent(device, BUFFER_SIZE, GFP_KERNEL, &data_dma);
+    if (!gamepad_buffer) {
+        printk(KERN_ERR "Could not allocate buffer space\n");
+        gamepad_free_pointers();
+        return -ENOENT;
+    }
     usb_fill_int_urb(irq, device, pipe, gamepad_buffer, BUFFER_SIZE, gamepad_urb_complete, NULL, INTERVAL);
 
     // Kick off the URB submission cycle
     result = usb_submit_urb(irq, GFP_KERNEL);
     if (result) {
         printk(KERN_ERR "Could not submit URB\n");
+        gamepad_free_pointers();
     }
     return result;
 }
@@ -104,6 +129,7 @@ static int gamepad_probe(struct usb_interface *interface, const struct usb_devic
 static void gamepad_disconnect(struct usb_interface *interface) {
     printk(KERN_INFO "Gamepad device removed\n");
     input_unregister_device(idev);
+    gamepad_free_pointers();
 }
 
 // Table that lists the vendor/product IDs this driver supports
@@ -129,4 +155,5 @@ int init_module() {
 // Cleans up the driver code
 void cleanup_module() {
     usb_deregister(&gamepad_driver);
+    gamepad_free_pointers();
 }
