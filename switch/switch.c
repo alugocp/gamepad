@@ -2,6 +2,7 @@
  * This code is informed by the following:
  * • https://github.com/torvalds/linux/blob/master/drivers/hid/usbhid/usbmouse.c
  * • https://docs.kernel.org/6.0/driver-api/usb/usb.html
+ * • https://github.com/kushsharma/mouse-driver/blob/master/mousek.c
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
