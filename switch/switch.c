@@ -6,6 +6,7 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/hid.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 #define BUFFER_SIZE 8
@@ -80,14 +81,14 @@ static void gamepad_free_pointers(void) {
 }
 
 // Probe function that gets called when our device is connected
-static int gamepad_probe(struct usb_interface *interface, const struct usb_device_id *id) {
+static int gamepad_probe(struct hid_device *hiddev, const struct hid_device_id *id) {
     int pipe;
     int result;
     printk(KERN_INFO "Gamepad device detected\n");
 
     // Allocate and register the input device (controls the mouse)
     idev = input_allocate_device();
-    idev->name = "gamepad_mouse";
+    idev->name = "gamepad-switch";
     set_bit(EV_KEY, idev->evbit);
     set_bit(BTN_LEFT, idev->keybit);
     set_bit(EV_REL, idev->evbit);
@@ -101,7 +102,7 @@ static int gamepad_probe(struct usb_interface *interface, const struct usb_devic
     }
 
     // Initialize logic to capture USB input stream data
-    device = interface_to_usbdev(interface);
+    device = to_usb_device(hiddev->dev.parent->parent);
     irq = usb_alloc_urb(0, GFP_KERNEL);
     if (!irq) {
         printk(KERN_ERR "Could not allocate a URB\n");
@@ -127,34 +128,34 @@ static int gamepad_probe(struct usb_interface *interface, const struct usb_devic
 }
 
 // Called when our device is disconnected
-static void gamepad_disconnect(struct usb_interface *interface) {
+static void gamepad_disconnect(struct hid_device *hiddev) {
     printk(KERN_INFO "Gamepad device removed\n");
     input_unregister_device(idev);
     gamepad_free_pointers();
 }
 
 // Table that lists the vendor/product IDs this driver supports
-static struct usb_device_id gamepad_table[] = {
-    { USB_DEVICE(0x20d6, 0xa713) },
+static struct hid_device_id gamepad_table[] = {
+    { HID_USB_DEVICE(0x20d6, 0xa713) },
     {}
 };
-MODULE_DEVICE_TABLE (usb, gamepad_table);
+MODULE_DEVICE_TABLE (hid, gamepad_table);
 
 // Table that defines probe/disconnect functions
-static struct usb_driver gamepad_driver = {
-    .name = "gamepad_driver",
+static struct hid_driver gamepad_driver = {
+    .name = "gamepad-switch",
     .id_table = gamepad_table,
     .probe = gamepad_probe,
-    .disconnect = gamepad_disconnect,
+    .remove = gamepad_disconnect,
 };
 
 // Initializes the driver (registers a USB driver)
 int init_module() {
-    return usb_register(&gamepad_driver);
+    return hid_register_driver(&gamepad_driver);
 }
 
 // Cleans up the driver code
 void cleanup_module() {
-    usb_deregister(&gamepad_driver);
+    hid_unregister_driver(&gamepad_driver);
     gamepad_free_pointers();
 }
